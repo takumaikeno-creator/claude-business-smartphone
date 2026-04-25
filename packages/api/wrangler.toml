@@ -1,0 +1,20 @@
+name = "sumagig-api"
+main = "src/index.ts"
+compatibility_date = "2024-10-22"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "development"
+
+# Secrets (set via: wrangler secret put <NAME>)
+# SUPABASE_URL
+# SUPABASE_SERVICE_ROLE_KEY
+# ANTHROPIC_API_KEY
+# STRIPE_SECRET_KEY
+# STRIPE_WEBHOOK_SECRET
+# PAYPAY_API_KEY
+# PAYPAY_API_SECRET
+# PAYPAY_MERCHANT_ID
+
+[[triggers]]
+crons = ["0 2 * * *"]  # 毎日02:00 UTC — 7日自動承認バッチ
