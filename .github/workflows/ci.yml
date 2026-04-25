@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate LP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline || npm install
+
+      - name: Check HTML structure
+        run: |
+          # Verify critical files exist
+          test -f index.html || (echo "ERROR: index.html not found" && exit 1)
+          test -f src/styles/main.css || (echo "ERROR: main.css not found" && exit 1)
+          test -f src/js/app.js || (echo "ERROR: app.js not found" && exit 1)
+          echo "OK: All required files present"
+
+      - name: Lint HTML
+        run: |
+          npx --yes html-validate \
+            --config '{"extends":["html-validate:recommended"],"rules":{"no-inline-style":"off","require-sri":"off"}}' \
+            index.html
+        continue-on-error: true
+
+      - name: Check CSS syntax
+        run: |
+          npx --yes stylelint \
+            --config '{"extends":"stylelint-config-standard","rules":{"color-function-notation":"legacy","alpha-value-notation":"number"}}' \
+            "src/styles/*.css"
+        continue-on-error: true
+
+      - name: Check JS syntax
+        run: node --check src/js/app.js && echo "OK: JS syntax valid"
+
+      - name: Check mobile viewport meta tag
+        run: |
+          grep -q 'viewport' index.html \
+            && echo "OK: viewport meta tag found" \
+            || (echo "ERROR: Missing mobile viewport meta tag" && exit 1)
+
+      - name: Check essential SEO meta tags
+        run: |
+          grep -q 'meta name="description"' index.html \
+            && echo "OK: description meta tag found" \
+            || echo "WARN: Missing description meta tag"
+
+  lighthouse:
+    name: Lighthouse Mobile Score
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install serve
+        run: npm install -g serve
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          configPath: ".github/lighthouse/config.json"
+        continue-on-error: true
