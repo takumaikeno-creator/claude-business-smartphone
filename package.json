@@ -1,0 +1,16 @@
+{
+  "name": "sumagig",
+  "version": "0.1.0",
+  "description": "SumaGig — スマホで完結するマイクロジョブプラットフォーム",
+  "scripts": {
+    "dev": "npx serve . -p 3000",
+    "build": "echo 'Static site — no build step required'",
+    "lint": "echo 'Add linter config here'"
+  },
+  "keywords": ["freelance", "mobile-first", "marketplace", "japan"],
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}
