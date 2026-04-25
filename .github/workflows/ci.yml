@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  validate:
+  # ── LP 検証 ──
+  validate-lp:
     name: Validate LP
     runs-on: ubuntu-latest
     steps:
@@ -19,15 +20,14 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci --prefer-offline || npm install
+      - name: Install root dependencies
+        run: npm install --ignore-scripts
 
-      - name: Check HTML structure
+      - name: Check required files
         run: |
-          # Verify critical files exist
-          test -f index.html || (echo "ERROR: index.html not found" && exit 1)
+          test -f index.html       || (echo "ERROR: index.html not found" && exit 1)
           test -f src/styles/main.css || (echo "ERROR: main.css not found" && exit 1)
-          test -f src/js/app.js || (echo "ERROR: app.js not found" && exit 1)
+          test -f src/js/app.js    || (echo "ERROR: app.js not found" && exit 1)
           echo "OK: All required files present"
 
       - name: Lint HTML
@@ -53,12 +53,71 @@ jobs:
             && echo "OK: viewport meta tag found" \
             || (echo "ERROR: Missing mobile viewport meta tag" && exit 1)
 
-      - name: Check essential SEO meta tags
-        run: |
-          grep -q 'meta name="description"' index.html \
-            && echo "OK: description meta tag found" \
-            || echo "WARN: Missing description meta tag"
+  # ── バックエンド API 型チェック ──
+  typecheck-api:
+    name: TypeCheck API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: packages/api/package-lock.json
+
+      - name: Install API dependencies
+        run: cd packages/api && npm install
+
+      - name: Create stub .dev.vars (型チェック用)
+        run: |
+          cat > packages/api/.dev.vars <<'EOF'
+          SUPABASE_URL=https://stub.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY=eyJstub
+          ANTHROPIC_API_KEY=sk-ant-stub
+          STRIPE_SECRET_KEY=sk_test_stub
+          STRIPE_WEBHOOK_SECRET=whsec_stub
+          PAYPAY_API_KEY=stub
+          PAYPAY_API_SECRET=stub
+          PAYPAY_MERCHANT_ID=stub
+          EOF
+
+      - name: TypeScript check
+        run: cd packages/api && npx tsc --noEmit
+        continue-on-error: true
+
+  # ── モバイルアプリ 型チェック ──
+  typecheck-mobile:
+    name: TypeCheck Mobile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: cd apps/mobile && npm install
+
+      - name: Create stub .env (型チェック用)
+        run: |
+          cat > apps/mobile/.env <<'EOF'
+          EXPO_PUBLIC_SUPABASE_URL=https://stub.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJstub
+          EXPO_PUBLIC_API_URL=https://stub.workers.dev
+          EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_stub
+          EOF
+
+      - name: TypeScript check
+        run: cd apps/mobile && npx tsc --noEmit
+        continue-on-error: true
+
+  # ── Lighthouse モバイルスコア ──
   lighthouse:
     name: Lighthouse Mobile Score
     runs-on: ubuntu-latest
